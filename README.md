@@ -1,29 +1,58 @@
 # Local User Account Audit Toolkit
 
-PowerShell tools for reviewing local Windows accounts and applying guarded, target-specific corrections.
+PowerShell tooling for auditing local Windows accounts and applying narrowly scoped account repairs.
 
-## Audit
+## Scripts
+
+- `Local_User_Account_Audit_Toolkit.ps1` — read-only inventory and CSV, JSON, and HTML reporting.
+- `Local_User_Account_Repair_Toolkit.ps1` — guarded repair workflow for one named local user.
+
+## Repair actions
+
+The repair script can enable or disable an account, clear `PasswordNeverExpires`, and update the account description. It refuses to disable the currently signed-in user and refuses to disable the built-in Administrator or Guest accounts.
+
+Windows and the `Microsoft.PowerShell.LocalAccounts` cmdlets are required. Actual changes require an elevated PowerShell session.
+
+## Examples
+
+Preview an enable operation:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\Local_User_Account_Audit_Toolkit.ps1
+powershell.exe -ExecutionPolicy Bypass -File .\Local_User_Account_Repair_Toolkit.ps1 `
+  -UserName SupportUser -Enable -DryRun
 ```
 
-## Repair
+Apply several repairs without the interactive prompt:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\Local_User_Account_Repair_Toolkit.ps1 -UserName SupportUser -Enable -DryRun
+powershell.exe -ExecutionPolicy Bypass -File .\Local_User_Account_Repair_Toolkit.ps1 `
+  -UserName SupportUser -Enable -RequirePasswordExpiry `
+  -Description "Local support account" -Yes
 ```
 
-Examples:
+Omit `-Yes` to require typing `YES` before changes are made.
 
-```powershell
-.\Local_User_Account_Repair_Toolkit.ps1 -UserName SupportUser -Enable
-.\Local_User_Account_Repair_Toolkit.ps1 -UserName OldUser -Disable
-.\Local_User_Account_Repair_Toolkit.ps1 -UserName SupportUser -RequirePasswordExpiry
-.\Local_User_Account_Repair_Toolkit.ps1 -UserName SupportUser -Description 'Approved support account'
-```
+## Evidence and verification
 
-The repair script captures the selected account before and after the change, supports `-DryRun`, confirmation, logs and clear exit codes. It refuses to disable the current user or the built-in Administrator and Guest accounts.
+Each run creates a timestamped directory under `%ProgramData%\LocalUserAccountRepair` unless `-OutputPath` is supplied. It contains `before.json`, `after.json`, and `repair.log`. The pre-change JSON is the account-state backup for this targeted workflow. Applied changes are checked against the requested final state.
+
+`-DryRun` records intended actions and does not apply or verify changes.
+
+## Exit codes
+
+| Code | Meaning |
+|---:|---|
+| 0 | Completed successfully, including a successful dry run |
+| 2 | Invalid arguments, missing account, or safety refusal |
+| 3 | Unsupported platform or missing LocalAccounts cmdlets |
+| 4 | Elevation required |
+| 10 | User cancelled at the confirmation prompt |
+| 20 | One or more repair actions failed |
+| 30 | Actions ran, but post-repair verification failed |
+
+## Validation status
+
+The scripts were source-reviewed during this update. They were not runtime-tested on a Windows endpoint.
 
 ## Author
 
